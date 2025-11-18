@@ -1,0 +1,31 @@
+# VCS
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Build cache
+bin/
+/dist
+/build
+*.log
+
+# Go
+**/*.test
+**/*_test.go
+vendor/
+
+# Local env
+.env
+.env.*
+
+# Node leftovers
+node_modules/
+
+# Others
+coverage/
+.tmp/
+**/*.swp

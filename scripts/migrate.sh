@@ -1,47 +1,34 @@
 #!/bin/sh
 set -e
 
-echo "🔧 Starting database migrations..."
+echo "🔧 Checking database migrations..."
 
-# Формируем DATABASE_URL из отдельных переменных если не задана
-if [ -z "$DATABASE_URL" ]; then
-  export DATABASE_URL="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE"
-fi
+# Database configuration
+DB_HOST="${DB_HOST:-db}"
+DB_PORT="${DB_PORT:-5432}"
+DB_USER="${DB_USER:-user}"
+DB_NAME="${DB_NAME:-auth_service}"
+DB_PASSWORD="${DB_PASSWORD:-password}"
 
-echo "📊 Using database: $DB_HOST:$DB_PORT/$DB_NAME"
+export DATABASE_URL="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=disable"
 
-# Ждем пока PostgreSQL запустится
+# Wait for database
 echo "⏳ Waiting for database to be ready..."
-for i in $(seq 1 30); do
-  if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; then
-    echo "✅ Database is ready!"
-    break
-  fi
-  echo "⏳ Waiting for database... ($i/30)"
-  sleep 2
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; do
+  sleep 1
 done
+echo "✅ Database is ready!"
 
-# Проверяем окончательно
-if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; then
-  echo "❌ Database connection failed after 60 seconds"
-  echo "🔍 Debug info:"
-  echo "DB_HOST: $DB_HOST"
-  echo "DB_PORT: $DB_PORT"
-  echo "DB_USER: $DB_USER"
-  echo "DATABASE_URL: $DATABASE_URL"
-  exit 1
+# Check if database is already initialized (users table exists)
+if psql "$DATABASE_URL" -t -c "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
+    echo "✅ Database already initialized, skipping migrations"
+    exit 0
 fi
 
-# Запускаем миграции
 echo "🔄 Applying migrations..."
-migrate -path /app/migrations -database "$DATABASE_URL" up
-
-if [ $? -eq 0 ]; then
-  echo "✅ Migrations completed successfully!"
+if migrate -path /app/migrations -database "$DATABASE_URL" up; then
+    echo "✅ Migrations completed successfully!"
 else
-  echo "❌ Migrations failed!"
-  exit 1
+    echo "❌ Migrations failed"
+    exit 1
 fi
-
-echo "🎉 Database setup complete!"
-
