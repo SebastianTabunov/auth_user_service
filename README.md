@@ -1,6 +1,6 @@
 # Auth User Service
 
-Microservice for user authentication and management.
+Microservice for user authentication, management, and order processing.
 
 ## Quick Start
 
